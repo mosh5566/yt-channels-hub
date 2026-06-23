@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>מרכז הערוצים שלי</title>
+  <meta name="description" content="ניהול מרכזי לכל ערוצי היוטיוב — גישה לסטודיו בלחיצה אחת" />
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="theme-color" content="#0f0f0f" />
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="הערוצים שלי" />
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-logo">▶</span>
+      <h1>הערוצים שלי</h1>
+    </div>
+    <div class="topbar-actions">
+      <button id="btn-add" class="btn btn-primary" type="button">
+        <span class="ico">＋</span><span class="lbl">ערוץ חדש</span>
+      </button>
+      <button id="btn-menu" class="btn btn-icon" type="button" title="הגדרות וגיבוי" aria-label="הגדרות">⋯</button>
+    </div>
+  </header>
+
+  <div class="searchbar">
+    <input id="search" type="search" placeholder="🔍 חיפוש ערוץ…" autocomplete="off" />
+  </div>
+
+  <main>
+    <section id="grid" class="grid" aria-live="polite"></section>
+
+    <div id="empty" class="empty hidden">
+      <div class="empty-art">📺</div>
+      <h2>אין כאן עדיין ערוצים</h2>
+      <p>הוסיפו את הערוץ הראשון כדי לקבל גישה לסטודיו בלחיצה אחת.</p>
+      <button class="btn btn-primary big" type="button" onclick="document.getElementById('btn-add').click()">＋ הוספת ערוץ ראשון</button>
+    </div>
+  </main>
+
+  <!-- מודאל הוספה / עריכה -->
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h2 id="modal-title">ערוץ חדש</h2>
+        <button class="btn btn-icon" type="button" data-close aria-label="סגירה">✕</button>
+      </div>
+
+      <form id="form" class="form">
+        <input type="hidden" id="f-id" />
+
+        <label class="field">
+          <span>שם הערוץ <em>*</em></span>
+          <input id="f-name" type="text" required placeholder="למשל: Cat Psychology" />
+        </label>
+
+        <label class="field">
+          <span>מייל גוגל שמנהל את הערוץ <em>*</em></span>
+          <input id="f-email" type="email" required placeholder="example@gmail.com" inputmode="email" dir="ltr" />
+          <small>הקישור ייפתח אוטומטית עם החשבון הזה — כך נפתרת בעיית הריבוי חשבונות.</small>
+        </label>
+
+        <label class="field">
+          <span>מזהה / קישור הערוץ</span>
+          <input id="f-channel" type="text" placeholder="UCxxxx… או קישור / @שם" dir="ltr" />
+          <small>אפשר להדביק כתובת ערוץ, מזהה <code>UC…</code>, או <code>@שם</code>. <a href="#" id="help-id">איך מוצאים את המזהה?</a></small>
+        </label>
+
+        <div class="field-row">
+          <label class="field">
+            <span>אימוג'י</span>
+            <input id="f-emoji" type="text" maxlength="2" placeholder="🐱" />
+          </label>
+          <label class="field">
+            <span>צבע</span>
+            <input id="f-color" type="color" value="#ff0033" />
+          </label>
+        </div>
+
+        <div id="help-box" class="help-box hidden">
+          <strong>איך מוצאים את מזהה הערוץ (Channel ID):</strong>
+          <ol>
+            <li>פותחים את הערוץ ב-YouTube ולוחצים על "Customize channel" / עריכת ערוץ.</li>
+            <li>או נכנסים ל-<code>studio.youtube.com</code> ← Settings ← Channel ← Advanced settings.</li>
+            <li>מעתיקים את ה-<code>Channel ID</code> שמתחיל ב-<code>UC…</code> ומדביקים כאן.</li>
+          </ol>
+          <p>לא חובה — בלי מזהה הקישור עדיין יפתח את הסטודיו של החשבון שבחרתם.</p>
+        </div>
+
+        <div class="modal-foot">
+          <button type="button" class="btn" data-close>ביטול</button>
+          <button type="submit" class="btn btn-primary">שמירה</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- מודאל הגדרות / גיבוי -->
+  <div id="menu" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="menu-title">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h2 id="menu-title">הגדרות וגיבוי</h2>
+        <button class="btn btn-icon" type="button" data-close aria-label="סגירה">✕</button>
+      </div>
+      <div class="menu-body">
+        <p class="muted">הנתונים נשמרים במכשיר הזה בלבד. כדאי לגבות מדי פעם.</p>
+        <button id="btn-export" class="btn btn-block" type="button">⬇️ ייצוא גיבוי (קובץ)</button>
+        <button id="btn-import" class="btn btn-block" type="button">⬆️ ייבוא מגיבוי</button>
+        <input id="file-import" type="file" accept="application/json" hidden />
+        <hr />
+        <button id="btn-clear" class="btn btn-block btn-danger" type="button">🗑️ מחיקת כל הערוצים</button>
+        <p class="muted center small" id="count-line"></p>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
