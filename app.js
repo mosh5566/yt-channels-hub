@@ -2,6 +2,8 @@
 "use strict";
 
 const STORE_KEY = "ytHub.channels.v1";
+const API_KEY_STORE = "ytHub.apiKey.v1";
+const STATS_TTL = 1000 * 60 * 30; // רענון אוטומטי כל 30 דקות
 
 /* --- State --- */
 let channels = load();
@@ -22,6 +24,96 @@ function load() {
 }
 function save() {
   localStorage.setItem(STORE_KEY, JSON.stringify(channels));
+}
+
+/* ===================== נתונים חיים (YouTube Data API) ===================== */
+function getApiKey() {
+  return localStorage.getItem(API_KEY_STORE) || "";
+}
+function setApiKey(k) {
+  localStorage.setItem(API_KEY_STORE, (k || "").trim());
+}
+
+// המרת מספר לתצוגה קצרה: 1234 -> 1.2K, 1500000 -> 1.5M
+function formatNum(n) {
+  n = Number(n) || 0;
+  if (n >= 1e9) return (n / 1e9).toFixed(1).replace(/\.0$/, "") + "B";
+  if (n >= 1e6) return (n / 1e6).toFixed(1).replace(/\.0$/, "") + "M";
+  if (n >= 1e3) return (n / 1e3).toFixed(1).replace(/\.0$/, "") + "K";
+  return String(n);
+}
+
+function applyStats(ch, item) {
+  const s = item.statistics || {};
+  const sn = item.snippet || {};
+  ch.stats = {
+    subs: s.subscriberCount,
+    hidden: !!s.hiddenSubscriberCount,
+    views: s.viewCount,
+    videos: s.videoCount,
+    thumb: (sn.thumbnails && (sn.thumbnails.default || {}).url) || "",
+    title: sn.title || "",
+    fetchedAt: Date.now(),
+  };
+}
+
+let refreshing = false;
+async function refreshStats(force) {
+  const key = getApiKey();
+  if (!key) return;
+  if (refreshing) return;
+
+  // דלג אם כל הנתונים טריים (אלא אם רענון יזום)
+  if (!force) {
+    const stale = channels.some(
+      (c) => (c.channelId || c.handle) && (!c.stats || Date.now() - c.stats.fetchedAt > STATS_TTL)
+    );
+    if (!stale) return;
+  }
+
+  refreshing = true;
+  const refreshBtn = $("#btn-refresh");
+  if (refreshBtn) refreshBtn.disabled = true;
+
+  try {
+    const base = "https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics";
+
+    // ערוצים עם channelId — אפשר לקבץ עד 50 בקריאה אחת
+    const withId = channels.filter((c) => c.channelId);
+    for (let i = 0; i < withId.length; i += 50) {
+      const batch = withId.slice(i, i + 50);
+      const ids = batch.map((c) => c.channelId).join(",");
+      const res = await fetch(`${base}&id=${ids}&key=${key}`);
+      const data = await res.json();
+      if (data.error) throw data.error;
+      (data.items || []).forEach((item) => {
+        const ch = channels.find((c) => c.channelId === item.id);
+        if (ch) applyStats(ch, item);
+      });
+    }
+
+    // ערוצים עם handle בלבד — קריאה לכל אחד (forHandle), ושומרים את ה-channelId שחוזר
+    const withHandle = channels.filter((c) => !c.channelId && c.handle);
+    for (const ch of withHandle) {
+      const res = await fetch(`${base}&forHandle=${encodeURIComponent(ch.handle)}&key=${key}`);
+      const data = await res.json();
+      if (data.error) throw data.error;
+      const item = (data.items || [])[0];
+      if (item) {
+        applyStats(ch, item);
+        ch.channelId = item.id; // העשרה: עכשיו יש לנו מזהה אמיתי
+      }
+    }
+
+    save();
+    render();
+  } catch (err) {
+    const reason = (err && err.message) || "שגיאה";
+    toast("⚠️ API: " + reason);
+  } finally {
+    refreshing = false;
+    if (refreshBtn) refreshBtn.disabled = false;
+  }
 }
 
 /* ===================== בניית קישורים ===================== */
@@ -104,9 +196,19 @@ function render() {
     card.dataset.id = ch.id;
     card.style.setProperty("--card-accent", ch.color || "#ff0033");
 
-    const avatar = ch.emoji
-      ? ch.emoji
-      : `<span>${escapeHtml(initial(ch.name))}</span>`;
+    const thumb = ch.stats && ch.stats.thumb;
+    const avatar = thumb
+      ? `<div class="avatar" style="background-image:url('${escapeHtml(thumb)}')"></div>`
+      : `<div class="avatar">${ch.emoji ? ch.emoji : `<span>${escapeHtml(initial(ch.name))}</span>`}</div>`;
+
+    const stats = ch.stats
+      ? `
+      <div class="card-stats">
+        <div class="stat"><div class="stat-num">${ch.stats.hidden ? "—" : formatNum(ch.stats.subs)}</div><div class="stat-lbl">מנויים</div></div>
+        <div class="stat"><div class="stat-num">${formatNum(ch.stats.views)}</div><div class="stat-lbl">צפיות</div></div>
+        <div class="stat"><div class="stat-num">${formatNum(ch.stats.videos)}</div><div class="stat-lbl">סרטונים</div></div>
+      </div>`
+      : "";
 
     card.innerHTML = `
       <div class="card-menu">
@@ -114,12 +216,13 @@ function render() {
         <button class="mini" data-del title="מחיקה">🗑️</button>
       </div>
       <div class="card-top">
-        <div class="avatar">${avatar}</div>
+        ${avatar}
         <div class="card-info">
           <div class="card-name">${escapeHtml(ch.name)}</div>
           <div class="card-email">${escapeHtml(ch.email || "")}</div>
         </div>
       </div>
+      ${stats}
       <div class="card-actions">
         <button class="btn btn-studio" data-studio>🎬 פתח סטודיו</button>
         <button class="btn" data-open title="פתח ערוץ ביוטיוב">▶</button>
@@ -203,6 +306,7 @@ function submitForm(e) {
   render();
   hideModal("#modal");
   toast(id ? "✅ הערוץ עודכן" : "✅ הערוץ נוסף");
+  refreshStats(true);
 }
 
 function removeChannel(ch) {
@@ -290,7 +394,26 @@ search.addEventListener("input", render);
 
 $("#btn-menu").addEventListener("click", () => {
   $("#count-line").textContent = `סה"כ ${channels.length} ערוצים שמורים`;
+  $("#api-key").value = getApiKey();
   showModal("#menu");
+});
+
+$("#btn-save-key").addEventListener("click", () => {
+  setApiKey($("#api-key").value);
+  toast(getApiKey() ? "🔑 המפתח נשמר" : "המפתח נמחק");
+  if (getApiKey()) refreshStats(true);
+});
+$("#btn-refresh").addEventListener("click", () => {
+  if (!getApiKey()) {
+    toast("צריך קודם להזין API Key");
+    return;
+  }
+  toast("🔄 מרענן נתונים…");
+  refreshStats(true);
+});
+$("#api-help").addEventListener("click", (e) => {
+  e.preventDefault();
+  $("#api-help-box").classList.toggle("hidden");
 });
 
 $("#btn-export").addEventListener("click", exportData);
@@ -341,3 +464,4 @@ if ("serviceWorker" in navigator) {
 
 /* ===================== התחלה ===================== */
 render();
+refreshStats(false);

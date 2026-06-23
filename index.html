@@ -111,6 +111,28 @@
         <button class="btn btn-icon" type="button" data-close aria-label="סגירה">✕</button>
       </div>
       <div class="menu-body">
+        <div class="api-section">
+          <label class="field">
+            <span>🔑 YouTube API Key — לנתונים חיים</span>
+            <input id="api-key" type="text" placeholder="מדביקים כאן את המפתח…" dir="ltr" autocomplete="off" spellcheck="false" />
+            <small>נשמר במכשיר שלך בלבד. מציג מנויים, צפיות וסרטונים בכל כרטיס. <a href="#" id="api-help">איך משיגים מפתח? (2 דקות, חינם)</a></small>
+          </label>
+          <div class="api-buttons">
+            <button id="btn-save-key" class="btn" type="button">💾 שמירת מפתח</button>
+            <button id="btn-refresh" class="btn btn-primary" type="button">🔄 רענן נתונים</button>
+          </div>
+          <div id="api-help-box" class="help-box hidden">
+            <strong>השגת YouTube API Key (חינם, ~2 דקות):</strong>
+            <ol>
+              <li>נכנסים ל-<code>console.cloud.google.com</code> ויוצרים פרויקט חדש (או בוחרים קיים).</li>
+              <li>מחפשים למעלה <code>YouTube Data API v3</code> ולוחצים <strong>Enable</strong>.</li>
+              <li>בתפריט: <code>APIs &amp; Services</code> ← <code>Credentials</code> ← <code>Create Credentials</code> ← <code>API key</code>.</li>
+              <li>מעתיקים את המפתח ומדביקים למעלה, ולוחצים "שמירת מפתח".</li>
+            </ol>
+            <p>🔒 מומלץ: לוחצים על המפתח ← <code>Restrict key</code> ← מגבילים ל-<code>YouTube Data API v3</code>, ותחת <em>Website restrictions</em> מוסיפים <code>mosh5566.github.io/*</code>.</p>
+          </div>
+        </div>
+        <hr />
         <p class="muted">הנתונים נשמרים במכשיר הזה בלבד. כדאי לגבות מדי פעם.</p>
         <button id="btn-export" class="btn btn-block" type="button">⬇️ ייצוא גיבוי (קובץ)</button>
         <button id="btn-import" class="btn btn-block" type="button">⬆️ ייבוא מגיבוי</button>
