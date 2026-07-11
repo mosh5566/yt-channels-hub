@@ -1,5 +1,5 @@
-/* Service Worker — מטמון בסיסי לעבודה אופליין ולהתקנה כאפליקציה */
-const CACHE = "yt-hub-v1";
+/* Service Worker — network-first כדי שתמיד יטען קוד עדכני, עם נפילה למטמון באופליין */
+const CACHE = "yt-hub-v2";
 const ASSETS = [
   "./",
   "./index.html",
@@ -26,21 +26,19 @@ self.addEventListener("activate", (e) => {
 self.addEventListener("fetch", (e) => {
   const { request } = e;
   if (request.method !== "GET") return;
-  // רק בקשות לאותו מקור (לא מנסים לשמור את גוגל/יוטיוב)
+  // רק בקשות לאותו מקור (לא נוגעים בגוגל/יוטיוב)
   if (new URL(request.url).origin !== self.location.origin) return;
 
+  // network-first: מנסה רשת קודם (קוד עדכני), נופל למטמון רק באין חיבור
   e.respondWith(
-    caches.match(request).then((cached) => {
-      const network = fetch(request)
-        .then((res) => {
-          if (res && res.status === 200) {
-            const copy = res.clone();
-            caches.open(CACHE).then((c) => c.put(request, copy));
-          }
-          return res;
-        })
-        .catch(() => cached);
-      return cached || network;
-    })
+    fetch(request)
+      .then((res) => {
+        if (res && res.status === 200) {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(request, copy));
+        }
+        return res;
+      })
+      .catch(() => caches.match(request))
   );
 });

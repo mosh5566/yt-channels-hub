@@ -15,6 +15,20 @@ const empty = $("#empty");
 const search = $("#search");
 
 /* ===================== אחסון ===================== */
+// בדיקה חד-פעמית שה-localStorage באמת זמy ומתמיד
+function storageAvailable() {
+  try {
+    const t = "__ythub_test__";
+    localStorage.setItem(t, "1");
+    const ok = localStorage.getItem(t) === "1";
+    localStorage.removeItem(t);
+    return ok;
+  } catch {
+    return false;
+  }
+}
+const STORAGE_OK = storageAvailable();
+
 function load() {
   try {
     return JSON.parse(localStorage.getItem(STORE_KEY)) || [];
@@ -22,8 +36,20 @@ function load() {
     return [];
   }
 }
+
+// שמירה חסינה: כותב, מאמת בקריאה חוזרת, ומתריע בבירור אם נכשל
 function save() {
-  localStorage.setItem(STORE_KEY, JSON.stringify(channels));
+  try {
+    const payload = JSON.stringify(channels);
+    localStorage.setItem(STORE_KEY, payload);
+    if (localStorage.getItem(STORE_KEY) !== payload) throw new Error("verify");
+    return true;
+  } catch (err) {
+    if (typeof toast === "function") {
+      toast("⚠️ השמירה נכשלה — הדפדפן חוסם אחסון. פתח דרך הכתובת (לא קובץ מקומי) ובלי גלישה בסתר.");
+    }
+    return false;
+  }
 }
 
 /* ===================== נתונים חיים (YouTube Data API) ===================== */
@@ -379,12 +405,12 @@ function hideModal(sel) {
 
 /* ===================== טוסט ===================== */
 let toastTimer;
-function toast(msg) {
+function toast(msg, ms) {
   const t = $("#toast");
   t.textContent = msg;
   t.classList.remove("hidden");
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.add("hidden"), 2200);
+  toastTimer = setTimeout(() => t.classList.add("hidden"), ms || 2200);
 }
 
 /* ===================== אירועים ===================== */
@@ -464,4 +490,10 @@ if ("serviceWorker" in navigator) {
 
 /* ===================== התחלה ===================== */
 render();
+if (!STORAGE_OK) {
+  toast(
+    "⚠️ הדפדפן חוסם שמירה! ערוצים לא יישמרו. פתח דרך הכתובת https://mosh5566.github.io/yt-channels-hub/ (לא כקובץ מקומי) ובלי גלישה בסתר.",
+    9000
+  );
+}
 refreshStats(false);
