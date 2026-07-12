@@ -115,7 +115,8 @@ main{max-width:1100px;margin-inline:auto;width:100%;padding:14px 18px calc(40px 
 .stat-lbl{font-size:10.5px;color:var(--muted);margin-top:2px}
 .card-info{min-width:0;flex:1}
 .card-name{font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.card-email{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;direction:ltr;text-align:right}
+.card-email{font-size:12px;color:var(--muted);direction:ltr;text-align:right;word-break:break-all;line-height:1.35}
+.card-badges{margin-top:5px;font-size:13px;letter-spacing:2px}
 .card-actions{display:flex;gap:8px}
 .card-actions .btn{flex:1}
 .btn-studio{background:var(--accent);border-color:transparent;color:#fff}
@@ -212,5 +213,51 @@ main{max-width:1100px;margin-inline:auto;width:100%;padding:14px 18px calc(40px 
   animation:toastIn .25s ease;
 }
 @keyframes toastIn{from{transform:translate(-50%,12px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
+
+/* ===== שדות חדשים בטופס ===== */
+.field textarea{
+  font:inherit;font-size:15px;color:var(--text);
+  background:var(--surface-2);border:1px solid var(--border);
+  border-radius:12px;padding:12px 14px;outline:none;resize:vertical;min-height:70px;line-height:1.6;
+}
+.field textarea:focus{border-color:var(--accent)}
+
+/* תמונת פרופיל */
+.photo-field{display:flex;align-items:center;gap:14px}
+.photo-preview{
+  flex:0 0 auto;width:72px;height:72px;border-radius:18px;
+  display:grid;place-items:center;font-size:30px;
+  background:var(--surface-2);border:1px solid var(--border);
+  background-size:cover;background-position:center;overflow:hidden;
+}
+.photo-preview.has-img{border-color:var(--accent)}
+.photo-actions{display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.btn-mini{padding:6px 12px;font-size:13px;color:#ff6b6b;background:#2a1518;border-color:#5a2730}
+
+/* סיסמה עם הצג/הסתר */
+.pw-wrap{position:relative;display:flex}
+.pw-wrap input{flex:1;padding-inline-start:44px}
+.pw-toggle{
+  position:absolute;inset-inline-start:6px;top:50%;transform:translateY(-50%);
+  background:none;border:none;cursor:pointer;font-size:17px;padding:6px;line-height:1;opacity:.75;
+}
+.pw-toggle:hover{opacity:1}
+
+/* ===== קישורים חשובים ===== */
+.links-list{display:flex;flex-direction:column;gap:8px}
+.link-row{
+  display:flex;align-items:center;gap:8px;
+  background:var(--surface-2);border:1px solid var(--border);
+  border-radius:10px;padding:8px 12px;
+}
+.link-open{flex:1;color:var(--text);text-decoration:none;font-size:14px;font-weight:600;word-break:break-all}
+.link-open:hover{color:var(--accent-hover)}
+.link-add{display:flex;gap:8px;margin-top:10px}
+.link-add input{
+  flex:1;min-width:0;font:inherit;font-size:14px;color:var(--text);
+  background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;outline:none;
+}
+.link-add input:focus{border-color:var(--accent)}
+.link-add .btn-primary{flex:0 0 auto;padding:10px 16px;font-size:18px}
 
 .hidden{display:none !important}

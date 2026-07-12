@@ -27,6 +27,7 @@
       <button id="btn-add" class="btn btn-primary" type="button">
         <span class="ico">＋</span><span class="lbl">ערוץ חדש</span>
       </button>
+      <button id="btn-hub" class="btn btn-icon" type="button" title="מרכז מידע" aria-label="מרכז מידע">📋</button>
       <button id="btn-menu" class="btn btn-icon" type="button" title="הגדרות וגיבוי" aria-label="הגדרות">⋯</button>
     </div>
   </header>
@@ -56,6 +57,16 @@
 
       <form id="form" class="form">
         <input type="hidden" id="f-id" />
+        <input type="hidden" id="f-photo" />
+
+        <div class="photo-field">
+          <div id="photo-preview" class="photo-preview" aria-hidden="true">🖼️</div>
+          <div class="photo-actions">
+            <button type="button" id="btn-photo" class="btn">🖼️ העלאת תמונת פרופיל</button>
+            <button type="button" id="btn-photo-clear" class="btn btn-mini hidden">הסרה</button>
+            <input id="file-photo" type="file" accept="image/*" hidden />
+          </div>
+        </div>
 
         <label class="field">
           <span>שם הערוץ <em>*</em></span>
@@ -74,6 +85,20 @@
           <small>אפשר להדביק כתובת ערוץ, מזהה <code>UC…</code>, או <code>@שם</code>. <a href="#" id="help-id">איך מוצאים את המזהה?</a></small>
         </label>
 
+        <label class="field">
+          <span>🔑 סיסמת כניסה לערוץ</span>
+          <div class="pw-wrap">
+            <input id="f-password" type="password" placeholder="סיסמת החשבון…" dir="ltr" autocomplete="off" />
+            <button type="button" class="pw-toggle" id="pw-toggle" aria-label="הצג/הסתר">👁️</button>
+          </div>
+          <small>נשמר אצלך בלבד. בשלב הענן נצפין אותה כך שאיש לא יוכל לקרוא.</small>
+        </label>
+
+        <label class="field">
+          <span>📱 טלפון אימות לערוץ</span>
+          <input id="f-phone" type="tel" placeholder="050-0000000" dir="ltr" inputmode="tel" />
+        </label>
+
         <div class="field-row">
           <label class="field">
             <span>אימוג'י</span>
@@ -84,6 +109,11 @@
             <input id="f-color" type="color" value="#ff0033" />
           </label>
         </div>
+
+        <label class="field">
+          <span>🧬 סקיל לשכפול ערוץ</span>
+          <textarea id="f-skill" rows="4" placeholder="כל המידע לשכפול הערוץ — נישה, סגנון, פרומפטים, תהליך, טיפים… ללא הגבלת אורך."></textarea>
+        </label>
 
         <div id="help-box" class="help-box hidden">
           <strong>איך מוצאים את מזהה הערוץ (Channel ID):</strong>
@@ -100,6 +130,41 @@
           <button type="submit" class="btn btn-primary">שמירה</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- מודאל מרכז מידע גלובלי -->
+  <div id="hub" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="hub-title">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h2 id="hub-title">📋 מרכז מידע</h2>
+        <button class="btn btn-icon" type="button" data-close aria-label="סגירה">✕</button>
+      </div>
+      <div class="form">
+        <label class="field">
+          <span>🗒️ מידע כללי</span>
+          <textarea id="g-notes" rows="5" placeholder="הערות, תזכורות, סיסמאות כלליות, כל מה שחשוב לך במקום אחד…"></textarea>
+        </label>
+
+        <label class="field">
+          <span>☁️ מחשב ענן (VPS / שרת)</span>
+          <textarea id="g-cloud" rows="5" placeholder="פרטי השרת: IP, משתמש, נתיבים, פקודות הפעלה, פרטי גישה…" dir="ltr"></textarea>
+        </label>
+
+        <div class="field">
+          <span>🔗 קישורים חשובים לניהול</span>
+          <div id="links-list" class="links-list"></div>
+          <div class="link-add">
+            <input id="link-title" type="text" placeholder="שם הקישור" />
+            <input id="link-url" type="url" placeholder="https://…" dir="ltr" />
+            <button type="button" id="btn-add-link" class="btn btn-primary">＋</button>
+          </div>
+        </div>
+
+        <div class="modal-foot">
+          <button type="button" class="btn btn-primary" id="btn-save-hub">💾 שמירה</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -134,7 +199,8 @@
         </div>
         <hr />
         <p class="muted">הנתונים נשמרים במכשיר הזה בלבד. כדאי לגבות מדי פעם.</p>
-        <button id="btn-export" class="btn btn-block" type="button">⬇️ ייצוא גיבוי (קובץ)</button>
+        <button id="btn-download-html" class="btn btn-block" type="button">📥 הורדת כל המידע לקובץ HTML</button>
+        <button id="btn-export" class="btn btn-block" type="button">⬇️ ייצוא גיבוי (JSON)</button>
         <button id="btn-import" class="btn btn-block" type="button">⬆️ ייבוא מגיבוי</button>
         <input id="file-import" type="file" accept="application/json" hidden />
         <hr />

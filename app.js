@@ -2,11 +2,13 @@
 "use strict";
 
 const STORE_KEY = "ytHub.channels.v1";
+const GLOBAL_KEY = "ytHub.global.v1";
 const API_KEY_STORE = "ytHub.apiKey.v1";
 const STATS_TTL = 1000 * 60 * 30; // רענון אוטומטי כל 30 דקות
 
 /* --- State --- */
 let channels = load();
+let globalData = loadGlobal(); // { notes, cloud, links: [{title,url}] }
 
 /* --- DOM --- */
 const $ = (s) => document.querySelector(s);
@@ -43,6 +45,7 @@ function save() {
     const payload = JSON.stringify(channels);
     localStorage.setItem(STORE_KEY, payload);
     if (localStorage.getItem(STORE_KEY) !== payload) throw new Error("verify");
+    onDataChanged();
     return true;
   } catch (err) {
     if (typeof toast === "function") {
@@ -50,6 +53,36 @@ function save() {
     }
     return false;
   }
+}
+
+// נתונים גלובליים (מרכז מידע): הערות, מחשב ענן, קישורים
+function loadGlobal() {
+  try {
+    const g = JSON.parse(localStorage.getItem(GLOBAL_KEY)) || {};
+    return { notes: g.notes || "", cloud: g.cloud || "", links: Array.isArray(g.links) ? g.links : [] };
+  } catch {
+    return { notes: "", cloud: "", links: [] };
+  }
+}
+function saveGlobal() {
+  try {
+    localStorage.setItem(GLOBAL_KEY, JSON.stringify(globalData));
+    onDataChanged();
+    return true;
+  } catch {
+    if (typeof toast === "function") toast("⚠️ השמירה נכשלה — הדפדפן חוסם אחסון.");
+    return false;
+  }
+}
+
+// נקודת חיבור לסנכרון ענן (שלב ב') — נקראת אחרי כל שינוי
+function onDataChanged() {
+  if (typeof window.onCloudSync === "function") window.onCloudSync();
+}
+
+// כל הנתונים כאובייקט אחד — לסנכרון ענן, גיבוי והורדה
+function collectAll() {
+  return { channels, global: globalData, meta: { app: "yt-channels-hub", version: 2 } };
 }
 
 /* ===================== נתונים חיים (YouTube Data API) ===================== */
@@ -222,10 +255,17 @@ function render() {
     card.dataset.id = ch.id;
     card.style.setProperty("--card-accent", ch.color || "#ff0033");
 
-    const thumb = ch.stats && ch.stats.thumb;
-    const avatar = thumb
-      ? `<div class="avatar" style="background-image:url('${escapeHtml(thumb)}')"></div>`
+    const img = ch.photo || (ch.stats && ch.stats.thumb);
+    const avatar = img
+      ? `<div class="avatar" style="background-image:url('${escapeHtml(img)}')"></div>`
       : `<div class="avatar">${ch.emoji ? ch.emoji : `<span>${escapeHtml(initial(ch.name))}</span>`}</div>`;
+
+    const badges = [
+      ch.password ? "🔑" : "",
+      ch.phone ? "📱" : "",
+      ch.skill ? "🧬" : "",
+    ].filter(Boolean).join(" ");
+    const badgesHtml = badges ? `<div class="card-badges" title="מידע שמור">${badges}</div>` : "";
 
     const stats = ch.stats
       ? `
@@ -245,7 +285,8 @@ function render() {
         ${avatar}
         <div class="card-info">
           <div class="card-name">${escapeHtml(ch.name)}</div>
-          <div class="card-email">${escapeHtml(ch.email || "")}</div>
+          <div class="card-email" title="${escapeHtml(ch.email || "")}">${escapeHtml(ch.email || "")}</div>
+          ${badgesHtml}
         </div>
       </div>
       ${stats}
@@ -302,15 +343,38 @@ function openForm(ch) {
   $("#f-channel").value = ch ? ch.channelId || ch.handle || "" : "";
   $("#f-emoji").value = ch ? ch.emoji || "" : "";
   $("#f-color").value = ch ? ch.color || "#ff0033" : "#ff0033";
+  $("#f-password").value = ch ? ch.password || "" : "";
+  $("#f-phone").value = ch ? ch.phone || "" : "";
+  $("#f-skill").value = ch ? ch.skill || "" : "";
+  setPhotoPreview(ch ? ch.photo || "" : "");
+  $("#f-password").type = "password";
   $("#help-box").classList.add("hidden");
   showModal("#modal");
   setTimeout(() => $("#f-name").focus(), 60);
+}
+
+// תצוגת התמונה בטופס + שמירתה בשדה הנסתר
+function setPhotoPreview(dataUrl) {
+  $("#f-photo").value = dataUrl || "";
+  const prev = $("#photo-preview");
+  if (dataUrl) {
+    prev.style.backgroundImage = `url('${dataUrl}')`;
+    prev.textContent = "";
+    prev.classList.add("has-img");
+    $("#btn-photo-clear").classList.remove("hidden");
+  } else {
+    prev.style.backgroundImage = "";
+    prev.textContent = "🖼️";
+    prev.classList.remove("has-img");
+    $("#btn-photo-clear").classList.add("hidden");
+  }
 }
 
 function submitForm(e) {
   e.preventDefault();
   const id = $("#f-id").value;
   const parsed = parseChannelInput($("#f-channel").value);
+  const existing = id ? channels.find((c) => c.id === id) : null;
   const data = {
     id: id || uid(),
     name: $("#f-name").value.trim(),
@@ -319,6 +383,11 @@ function submitForm(e) {
     handle: parsed.handle || "",
     emoji: $("#f-emoji").value.trim(),
     color: $("#f-color").value,
+    password: $("#f-password").value,
+    phone: $("#f-phone").value.trim(),
+    skill: $("#f-skill").value,
+    photo: $("#f-photo").value || "",
+    stats: existing ? existing.stats : undefined, // שימור נתונים חיים בעריכה
   };
   if (!data.name || !data.email) return;
 
@@ -345,7 +414,7 @@ function removeChannel(ch) {
 
 /* ===================== גיבוי ===================== */
 function exportData() {
-  const blob = new Blob([JSON.stringify(channels, null, 2)], {
+  const blob = new Blob([JSON.stringify(collectAll(), null, 2)], {
     type: "application/json",
   });
   const url = URL.createObjectURL(blob);
@@ -357,24 +426,33 @@ function exportData() {
   toast("⬇️ הגיבוי נשמר");
 }
 
+function normalizeChannel(c) {
+  return {
+    id: c.id || uid(),
+    name: String(c.name),
+    email: String(c.email || ""),
+    channelId: String(c.channelId || ""),
+    handle: String(c.handle || ""),
+    emoji: String(c.emoji || ""),
+    color: String(c.color || "#ff0033"),
+    password: String(c.password || ""),
+    phone: String(c.phone || ""),
+    skill: String(c.skill || ""),
+    photo: String(c.photo || ""),
+    stats: c.stats || undefined,
+  };
+}
+
 function importData(file) {
   const reader = new FileReader();
   reader.onload = () => {
     try {
       const data = JSON.parse(reader.result);
-      if (!Array.isArray(data)) throw new Error("bad");
-      const valid = data
-        .filter((c) => c && c.name)
-        .map((c) => ({
-          id: c.id || uid(),
-          name: String(c.name),
-          email: String(c.email || ""),
-          channelId: String(c.channelId || ""),
-          handle: String(c.handle || ""),
-          emoji: String(c.emoji || ""),
-          color: String(c.color || "#ff0033"),
-        }));
-      // מיזוג: מוסיף רק ערוצים שלא קיימים (לפי שם+מייל)
+      // תמיכה בפורמט ישן (מערך) ובחדש ({channels, global})
+      const arr = Array.isArray(data) ? data : data.channels;
+      if (!Array.isArray(arr)) throw new Error("bad");
+      const valid = arr.filter((c) => c && c.name).map(normalizeChannel);
+
       const key = (c) => (c.name + "|" + c.email).toLowerCase();
       const existing = new Set(channels.map(key));
       let added = 0;
@@ -384,6 +462,17 @@ function importData(file) {
           added++;
         }
       });
+
+      // ייבוא נתונים גלובליים (אם קיימים ואין עדיין)
+      if (data.global) {
+        if (data.global.notes && !globalData.notes) globalData.notes = String(data.global.notes);
+        if (data.global.cloud && !globalData.cloud) globalData.cloud = String(data.global.cloud);
+        if (Array.isArray(data.global.links) && !globalData.links.length) {
+          globalData.links = data.global.links.filter((l) => l && l.url);
+        }
+        saveGlobal();
+      }
+
       save();
       render();
       hideModal("#menu");
@@ -413,10 +502,177 @@ function toast(msg, ms) {
   toastTimer = setTimeout(() => t.classList.add("hidden"), ms || 2200);
 }
 
+/* ===================== תמונת פרופיל ===================== */
+function handlePhotoFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const im = new Image();
+    im.onload = () => {
+      const max = 256; // כיווץ לחיסכון באחסון וברוחב פס
+      let w = im.width, h = im.height;
+      if (w > h && w > max) { h = Math.round((h * max) / w); w = max; }
+      else if (h > max) { w = Math.round((w * max) / h); h = max; }
+      const c = document.createElement("canvas");
+      c.width = w; c.height = h;
+      c.getContext("2d").drawImage(im, 0, 0, w, h);
+      setPhotoPreview(c.toDataURL("image/jpeg", 0.85));
+    };
+    im.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+/* ===================== מרכז מידע גלובלי ===================== */
+function openHub() {
+  $("#g-notes").value = globalData.notes || "";
+  $("#g-cloud").value = globalData.cloud || "";
+  renderLinks();
+  showModal("#hub");
+}
+function saveHub() {
+  globalData.notes = $("#g-notes").value;
+  globalData.cloud = $("#g-cloud").value;
+  saveGlobal();
+  hideModal("#hub");
+  toast("✅ המידע נשמר");
+}
+function renderLinks() {
+  const box = $("#links-list");
+  box.innerHTML = "";
+  const links = globalData.links || [];
+  if (!links.length) {
+    box.innerHTML = `<p class="muted small center">אין קישורים עדיין.</p>`;
+    return;
+  }
+  links.forEach((lk, i) => {
+    const row = document.createElement("div");
+    row.className = "link-row";
+    row.innerHTML = `
+      <a href="${escapeHtml(lk.url)}" target="_blank" rel="noopener" class="link-open">🔗 ${escapeHtml(lk.title || lk.url)}</a>
+      <button type="button" class="mini" title="מחיקה">🗑️</button>
+    `;
+    row.querySelector("button").addEventListener("click", () => {
+      globalData.links.splice(i, 1);
+      saveGlobal();
+      renderLinks();
+    });
+    box.appendChild(row);
+  });
+}
+function addLink() {
+  const title = $("#link-title").value.trim();
+  let url = $("#link-url").value.trim();
+  if (!url) return;
+  if (!/^https?:\/\//i.test(url)) url = "https://" + url;
+  globalData.links = globalData.links || [];
+  globalData.links.push({ title: title || url, url });
+  saveGlobal();
+  $("#link-title").value = "";
+  $("#link-url").value = "";
+  renderLinks();
+}
+
+/* ===================== הורדת כל המידע ל-HTML/PDF ===================== */
+function downloadHtml() {
+  const esc = (s) => escapeHtml(String(s == null ? "" : s));
+  const br = (s) => esc(s).replace(/\n/g, "<br>");
+  const date = new Date().toISOString().slice(0, 10);
+
+  const cards = channels.map((ch) => {
+    const img = ch.photo || (ch.stats && ch.stats.thumb) || "";
+    const avatar = img
+      ? `<img class="av" src="${esc(img)}" alt="">`
+      : `<div class="av ph">${esc(ch.emoji || initial(ch.name))}</div>`;
+    const row = (label, val) => (val ? `<tr><th>${label}</th><td dir="auto">${br(val)}</td></tr>` : "");
+    const st = ch.stats
+      ? `<tr><th>נתונים</th><td>👥 ${formatNum(ch.stats.subs)} · ▶ ${formatNum(ch.stats.views)} · 🎬 ${formatNum(ch.stats.videos)}</td></tr>`
+      : "";
+    return `
+      <div class="ch" style="border-color:${esc(ch.color || "#ff0033")}">
+        <div class="ch-h">${avatar}<h3>${esc(ch.name)}</h3></div>
+        <table>
+          ${row("מייל", ch.email)}
+          ${row("מזהה ערוץ", ch.channelId)}
+          ${row("Handle", ch.handle)}
+          ${row("🔑 סיסמה", ch.password)}
+          ${row("📱 טלפון אימות", ch.phone)}
+          ${st}
+          ${row("🧬 סקיל לשכפול", ch.skill)}
+        </table>
+      </div>`;
+  }).join("");
+
+  const links = (globalData.links || [])
+    .map((l) => `<li><a href="${esc(l.url)}">${esc(l.title || l.url)}</a></li>`)
+    .join("");
+
+  const html = `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8">
+<title>הערוצים שלי — גיבוי ${date}</title>
+<style>
+  *{box-sizing:border-box}
+  body{font-family:"Segoe UI","Noto Sans Hebrew",Arial,sans-serif;background:#f4f4f6;color:#18181b;margin:0;padding:24px;line-height:1.6}
+  h1{margin:0 0 4px}.sub{color:#777;margin-bottom:20px}
+  .toolbar{margin-bottom:20px}
+  .toolbar button{font:inherit;font-weight:700;background:#ff0033;color:#fff;border:0;border-radius:10px;padding:10px 18px;cursor:pointer}
+  .ch{background:#fff;border-right:6px solid #ff0033;border-radius:12px;padding:16px 20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.08);break-inside:avoid}
+  .ch-h{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+  .av{width:46px;height:46px;border-radius:12px;object-fit:cover}
+  .av.ph{display:grid;place-items:center;background:#ff0033;color:#fff;font-size:22px;font-weight:700}
+  .ch h3{margin:0;font-size:18px}
+  table{width:100%;border-collapse:collapse}
+  th,td{text-align:right;padding:6px 8px;vertical-align:top;font-size:14px;border-bottom:1px solid #eee}
+  th{width:130px;color:#555;font-weight:600;white-space:nowrap}
+  td{word-break:break-word}
+  .box{background:#fff;border-radius:12px;padding:16px 20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+  .box h2{margin:0 0 8px;font-size:16px}
+  .box pre{white-space:pre-wrap;word-break:break-word;font:inherit;margin:0}
+  ul{margin:0;padding-inline-start:20px}
+  @media print{.toolbar{display:none}body{background:#fff;padding:0}}
+</style></head><body>
+  <h1>📺 הערוצים שלי</h1>
+  <div class="sub">גיבוי מלא · ${date} · ${channels.length} ערוצים</div>
+  <div class="toolbar"><button onclick="window.print()">🖨️ הדפסה / שמירה כ-PDF</button></div>
+  ${cards || "<p>אין ערוצים.</p>"}
+  ${globalData.notes ? `<div class="box"><h2>🗒️ מידע כללי</h2><pre>${br(globalData.notes)}</pre></div>` : ""}
+  ${globalData.cloud ? `<div class="box"><h2>☁️ מחשב ענן</h2><pre dir="ltr">${br(globalData.cloud)}</pre></div>` : ""}
+  ${links ? `<div class="box"><h2>🔗 קישורים חשובים</h2><ul>${links}</ul></div>` : ""}
+</body></html>`;
+
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `youtube-channels-${date}.html`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast("📥 הקובץ הורד — פתח אותו ולחץ 'הדפסה/PDF'");
+}
+
 /* ===================== אירועים ===================== */
 $("#btn-add").addEventListener("click", () => openForm(null));
 $("#form").addEventListener("submit", submitForm);
 search.addEventListener("input", render);
+
+// תמונת פרופיל
+$("#btn-photo").addEventListener("click", () => $("#file-photo").click());
+$("#file-photo").addEventListener("change", (e) => {
+  if (e.target.files[0]) handlePhotoFile(e.target.files[0]);
+  e.target.value = "";
+});
+$("#btn-photo-clear").addEventListener("click", () => setPhotoPreview(""));
+$("#pw-toggle").addEventListener("click", () => {
+  const inp = $("#f-password");
+  inp.type = inp.type === "password" ? "text" : "password";
+});
+
+// מרכז מידע
+$("#btn-hub").addEventListener("click", openHub);
+$("#btn-save-hub").addEventListener("click", saveHub);
+$("#btn-add-link").addEventListener("click", addLink);
+$("#link-url").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addLink(); } });
+
+// הורדת HTML
+$("#btn-download-html").addEventListener("click", downloadHtml);
 
 $("#btn-menu").addEventListener("click", () => {
   $("#count-line").textContent = `סה"כ ${channels.length} ערוצים שמורים`;
@@ -467,6 +723,7 @@ document.querySelectorAll("[data-close]").forEach((b) =>
   b.addEventListener("click", () => {
     hideModal("#modal");
     hideModal("#menu");
+    hideModal("#hub");
   })
 );
 document.querySelectorAll(".modal").forEach((m) =>
@@ -478,6 +735,7 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
     hideModal("#modal");
     hideModal("#menu");
+    hideModal("#hub");
   }
 });
 
