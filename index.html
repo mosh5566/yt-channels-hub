@@ -176,6 +176,31 @@
         <button class="btn btn-icon" type="button" data-close aria-label="סגירה">✕</button>
       </div>
       <div class="menu-body">
+        <div class="drive-section">
+          <div class="drive-head">
+            <span>☁️ סנכרון Google Drive</span>
+            <span id="drive-status" class="drive-status">לא מוגדר</span>
+          </div>
+          <input id="drive-client-id" type="text" placeholder="הדבק כאן Client ID של גוגל…" dir="ltr" autocomplete="off" spellcheck="false" />
+          <div class="drive-buttons">
+            <button id="btn-drive-save" class="btn" type="button">💾 שמירת מזהה</button>
+            <button id="btn-drive-connect" class="btn btn-primary" type="button">🔗 התחבר עם גוגל</button>
+            <button id="btn-drive-sync" class="btn hidden" type="button">🔄 סנכרן עכשיו</button>
+          </div>
+          <small>הנתונים נשמרים בדרייב הפרטי שלך ומסתנכרנים לכל מכשיר — ולא נמחקים. <a href="#" id="drive-help">איך יוצרים Client ID? (3 דק')</a></small>
+          <div id="drive-help-box" class="help-box hidden">
+            <strong>יצירת Google Client ID (חינם, ~3 דקות):</strong>
+            <ol>
+              <li>נכנסים ל-<code>console.cloud.google.com</code> (אותו פרויקט של ה-API Key).</li>
+              <li><code>APIs &amp; Services</code> ← <code>Enabled APIs</code> ← מחפשים <code>Google Drive API</code> ← <strong>Enable</strong>.</li>
+              <li><code>APIs &amp; Services</code> ← <code>OAuth consent screen</code> ← בוחרים <code>External</code>, ממלאים שם אפליקציה+מייל, ומוסיפים את עצמך תחת <code>Test users</code>.</li>
+              <li><code>Credentials</code> ← <code>Create Credentials</code> ← <code>OAuth client ID</code> ← סוג <code>Web application</code>.</li>
+              <li>תחת <code>Authorized JavaScript origins</code> מוסיפים: <code>https://mosh5566.github.io</code></li>
+              <li>מעתיקים את ה-<code>Client ID</code> (מסתיים ב-<code>.apps.googleusercontent.com</code>), מדביקים למעלה ולוחצים "שמירת מזהה" → "התחבר עם גוגל".</li>
+            </ol>
+          </div>
+        </div>
+        <hr />
         <div class="api-section">
           <label class="field">
             <span>🔑 YouTube API Key — לנתונים חיים</span>
@@ -212,6 +237,8 @@
 
   <div id="toast" class="toast hidden"></div>
 
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="app.js"></script>
+  <script src="drive.js"></script>
 </body>
 </html>

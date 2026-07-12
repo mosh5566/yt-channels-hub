@@ -1,10 +1,11 @@
 /* Service Worker — network-first כדי שתמיד יטען קוד עדכני, עם נפילה למטמון באופליין */
-const CACHE = "yt-hub-v2";
+const CACHE = "yt-hub-v3";
 const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
+  "./drive.js",
   "./manifest.webmanifest",
   "./icons/icon.svg",
 ];

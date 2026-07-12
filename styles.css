@@ -201,6 +201,21 @@ main{max-width:1100px;margin-inline:auto;width:100%;padding:14px 18px calc(40px 
 .api-section{display:flex;flex-direction:column;gap:12px}
 .api-buttons{display:flex;gap:10px}
 .api-buttons .btn{flex:1}
+
+/* ===== סנכרון Drive ===== */
+.drive-section{display:flex;flex-direction:column;gap:12px}
+.drive-head{display:flex;align-items:center;justify-content:space-between;font-size:14px;font-weight:700}
+.drive-status{font-size:12px;font-weight:600;color:var(--muted);background:var(--surface-2);border:1px solid var(--border);border-radius:20px;padding:4px 10px}
+.drive-status.err{color:#ff6b6b;border-color:#5a2730}
+.drive-section input{
+  font:inherit;font-size:14px;color:var(--text);
+  background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:11px 13px;outline:none;
+}
+.drive-section input:focus{border-color:var(--accent)}
+.drive-buttons{display:flex;gap:8px;flex-wrap:wrap}
+.drive-buttons .btn{flex:1;min-width:120px}
+.drive-section small{font-size:11.5px;color:var(--muted);line-height:1.5}
+.drive-section small a{color:var(--accent-hover)}
 .center{text-align:center}
 .small{font-size:12px}
 

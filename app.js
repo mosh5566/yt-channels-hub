@@ -75,15 +75,50 @@ function saveGlobal() {
   }
 }
 
-// נקודת חיבור לסנכרון ענן (שלב ב') — נקראת אחרי כל שינוי
+// מעקב חותמת זמן לסנכרון (last-write-wins בין מכשירים)
+function touchModified() {
+  try { localStorage.setItem("ytHub.updatedAt", String(Date.now())); } catch {}
+}
+function getModified() {
+  return +localStorage.getItem("ytHub.updatedAt") || 0;
+}
+
+// נקודת חיבור לסנכרון ענן — נקראת אחרי כל שינוי
 function onDataChanged() {
+  touchModified();
   if (typeof window.onCloudSync === "function") window.onCloudSync();
 }
 
 // כל הנתונים כאובייקט אחד — לסנכרון ענן, גיבוי והורדה
 function collectAll() {
-  return { channels, global: globalData, meta: { app: "yt-channels-hub", version: 2 } };
+  return {
+    channels,
+    global: globalData,
+    meta: { app: "yt-channels-hub", version: 2, updatedAt: getModified() },
+  };
 }
+
+// החלת נתונים שהגיעו מהענן (בלי להפעיל סנכרון חוזר)
+window.applyCloudData = function (data, cloudModified) {
+  if (data && Array.isArray(data.channels)) {
+    channels = data.channels.filter((c) => c && c.name).map(normalizeChannel);
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(channels)); } catch {}
+  }
+  if (data && data.global) {
+    globalData = {
+      notes: data.global.notes || "",
+      cloud: data.global.cloud || "",
+      links: Array.isArray(data.global.links) ? data.global.links : [],
+    };
+    try { localStorage.setItem(GLOBAL_KEY, JSON.stringify(globalData)); } catch {}
+  }
+  if (cloudModified) {
+    try { localStorage.setItem("ytHub.updatedAt", String(cloudModified)); } catch {}
+  }
+  render();
+};
+window.getLocalData = collectAll;
+window.getLocalModified = getModified;
 
 /* ===================== נתונים חיים (YouTube Data API) ===================== */
 function getApiKey() {
@@ -741,6 +776,13 @@ document.addEventListener("keydown", (e) => {
 
 /* ===================== Service Worker ===================== */
 if ("serviceWorker" in navigator) {
+  // כשקוד חדש משתלט — מרעננים פעם אחת אוטומטית כדי שלא יישאר קוד ישן במטמון
+  let swRefreshed = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (swRefreshed) return;
+    swRefreshed = true;
+    location.reload();
+  });
   window.addEventListener("load", () =>
     navigator.serviceWorker.register("sw.js").catch(() => {})
   );
