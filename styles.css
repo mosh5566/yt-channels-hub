@@ -113,7 +113,7 @@ main{max-width:1100px;margin-inline:auto;width:100%;padding:14px 18px calc(40px 
 .stat{flex:1;text-align:center;min-width:0}
 .stat-num{font-size:16px;font-weight:800;letter-spacing:.2px}
 .stat-lbl{font-size:10.5px;color:var(--muted);margin-top:2px}
-.card-info{min-width:0;flex:1}
+.card-info{min-width:0;flex:1;padding-inline-end:34px}
 .card-name{font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .card-email{font-size:12px;color:var(--muted);direction:ltr;text-align:right;word-break:break-all;line-height:1.35}
 .card-badges{margin-top:5px;font-size:13px;letter-spacing:2px}
@@ -122,6 +122,13 @@ main{max-width:1100px;margin-inline:auto;width:100%;padding:14px 18px calc(40px 
 .btn-studio{background:var(--accent);border-color:transparent;color:#fff}
 .btn-studio:hover{background:var(--accent-hover)}
 
+.card-num{
+  position:absolute;top:12px;inset-inline-end:14px;z-index:1;
+  font-size:13px;font-weight:800;color:var(--card-accent,var(--accent));
+  background:var(--surface-2);border:1px solid var(--border);
+  min-width:28px;height:26px;border-radius:8px;
+  display:grid;place-items:center;padding:0 7px;direction:ltr;
+}
 .card-menu{position:absolute;top:12px;inset-inline-start:12px;display:flex;gap:4px}
 .mini{
   width:30px;height:30px;border-radius:9px;display:grid;place-items:center;

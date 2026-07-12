@@ -289,6 +289,7 @@ function render() {
     card.draggable = true;
     card.dataset.id = ch.id;
     card.style.setProperty("--card-accent", ch.color || "#ff0033");
+    const num = channels.indexOf(ch) + 1;
 
     const img = ch.photo || (ch.stats && ch.stats.thumb);
     const avatar = img
@@ -312,6 +313,7 @@ function render() {
       : "";
 
     card.innerHTML = `
+      <div class="card-num">#${num}</div>
       <div class="card-menu">
         <button class="mini" data-edit title="עריכה">✏️</button>
         <button class="mini" data-del title="מחיקה">🗑️</button>
