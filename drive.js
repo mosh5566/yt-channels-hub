@@ -78,8 +78,24 @@
     if (accessToken && window.google) google.accounts.oauth2.revoke(accessToken, () => {});
     accessToken = null;
     fileId = null;
+    try { localStorage.removeItem("ytHub.driveLinked"); } catch {}
     updateButtons(false);
     status("מנותק");
+  }
+
+  // חיבור אוטומטי שקט אם המשתמש כבר התחבר בעבר בדפדפן הזה
+  function autoConnect() {
+    waitGis(() => {
+      if (!tokenClient && !initTokenClient()) return;
+      status("מתחבר אוטומטית…");
+      new Promise((resolve) => {
+        onTokenResolve = resolve;
+        tokenClient.requestAccessToken({ prompt: "" });
+      }).then((ok) => {
+        if (ok) onConnected();
+        else status("מוכן — לחץ 'התחבר עם גוגל'");
+      });
+    });
   }
 
   /* ---- קריאות Drive עם רענון טוקן אוטומטי ---- */
@@ -140,22 +156,66 @@
     }
   }
 
+  /* ---- מיזוג בטוח: משלב את שני הצדדים בלי לאבד ערוצים ---- */
+  function chKey(c) {
+    return (c.channelId ? "id:" + c.channelId : "ne:" + (c.name || "") + "|" + (c.email || "")).toLowerCase();
+  }
+  function fillMissing(winner, other) {
+    const out = Object.assign({}, winner);
+    ["password", "phone", "skill", "photo", "channelId", "handle", "emoji", "color", "stats"].forEach((f) => {
+      const empty = out[f] === undefined || out[f] === "" || out[f] === null;
+      if (empty && other[f]) out[f] = other[f];
+    });
+    return out;
+  }
+  function mergeChannels(primary, secondary) {
+    const map = new Map();
+    const add = (c) => {
+      if (!c || !c.name) return;
+      const k = chKey(c);
+      map.set(k, map.has(k) ? fillMissing(map.get(k), c) : c);
+    };
+    (primary || []).forEach(add); // primary מנצח בקונפליקט
+    (secondary || []).forEach(add);
+    return [...map.values()];
+  }
+  function mergeGlobal(a, b, aWins) {
+    a = a || {}; b = b || {};
+    const main = aWins ? a : b, other = aWins ? b : a;
+    return {
+      notes: main.notes || other.notes || "",
+      cloud: main.cloud || other.cloud || "",
+      links: (main.links && main.links.length ? main.links : other.links) || [],
+    };
+  }
+
   /* ---- סנכרון ראשוני אחרי התחברות ---- */
   async function onConnected() {
     updateButtons(true);
+    try { localStorage.setItem("ytHub.driveLinked", "1"); } catch {}
     status("מסנכרן…");
     try {
       await findFile();
       const cloud = fileId ? await downloadFile() : null;
-      const localMod = window.getLocalModified();
-      const cloudMod = (cloud && cloud.meta && cloud.meta.updatedAt) || 0;
-      if (cloud && cloudMod > localMod) {
-        window.applyCloudData(cloud, cloudMod); // הענן חדש יותר → מיישם מקומית
-        status("✅ סונכרן מהענן");
-      } else {
-        await uploadFile(); // מקומי חדש יותר או אין קובץ → מעלה
-        status("✅ מסונכרן לענן");
+
+      if (!cloud || !Array.isArray(cloud.channels)) {
+        await uploadFile(); // אין נתונים בענן → מעלה מקומי
+        status("✅ הועלה לענן");
+        return;
       }
+
+      // מיזוג דו-כיווני — אף צד לא נדרס. המקור הטרי מנצח בקונפליקט.
+      const localMod = window.getLocalModified();
+      const cloudMod = (cloud.meta && cloud.meta.updatedAt) || 0;
+      const cloudWins = cloudMod >= localMod;
+      const mergedChannels = cloudWins
+        ? mergeChannels(cloud.channels, window.getLocalData().channels)
+        : mergeChannels(window.getLocalData().channels, cloud.channels);
+      const mergedGlobal = mergeGlobal(cloud.global, window.getLocalData().global, cloudWins);
+
+      window.applyCloudData({ channels: mergedChannels, global: mergedGlobal }, Date.now());
+      await uploadFile(); // מעלה את התוצאה הממוזגת חזרה לענן
+      status("✅ סונכרן — " + mergedChannels.length + " ערוצים");
     } catch (e) {
       status("⚠️ שגיאת סנכרון: " + (e.message || ""), "err");
     }
@@ -212,6 +272,8 @@
       });
     updateButtons(false);
     status("מוכן — לחץ 'התחבר עם גוגל'");
+    // אם כבר התחברת בעבר בדפדפן הזה — מתחברים ומסנכרנים אוטומטית
+    if (localStorage.getItem("ytHub.driveLinked")) autoConnect();
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
