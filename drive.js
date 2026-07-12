@@ -2,6 +2,8 @@
 "use strict";
 (function () {
   const CLIENT_ID_KEY = "ytHub.driveClientId";
+  // Client ID ציבורי מוטמע — כך אין צורך להדביק כלום בכל דפדפן
+  const DEFAULT_CLIENT_ID = "543009235041-bsopvs4559cni30fkt8hqvl0dpbjl307.apps.googleusercontent.com";
   const FILE_NAME = "ythub-data.json";
   const SCOPE = "https://www.googleapis.com/auth/drive.appdata";
 
@@ -19,7 +21,7 @@
       el.className = "drive-status" + (cls ? " " + cls : "");
     }
   }
-  const getClientId = () => (localStorage.getItem(CLIENT_ID_KEY) || "").trim();
+  const getClientId = () => (localStorage.getItem(CLIENT_ID_KEY) || DEFAULT_CLIENT_ID).trim();
   const setClientId = (v) => localStorage.setItem(CLIENT_ID_KEY, (v || "").trim());
 
   /* ---- טעינת Google Identity Services ---- */
@@ -189,7 +191,8 @@
   /* ---- אתחול ה-UI ---- */
   function boot() {
     const cidInput = $("#drive-client-id");
-    if (cidInput) cidInput.value = getClientId();
+    // מציגים רק override מפורש; ברירת המחדל מוטמעת בקוד
+    if (cidInput) cidInput.value = localStorage.getItem(CLIENT_ID_KEY) || "";
     const save = $("#btn-drive-save");
     if (save)
       save.addEventListener("click", () => {
@@ -208,7 +211,7 @@
         $("#drive-help-box").classList.toggle("hidden");
       });
     updateButtons(false);
-    status(getClientId() ? "מוכן — לחץ 'התחבר עם גוגל'" : "לא מוגדר");
+    status("מוכן — לחץ 'התחבר עם גוגל'");
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
