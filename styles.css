@@ -120,8 +120,9 @@ main{max-width:1100px;margin-inline:auto;width:100%;padding:14px 18px calc(40px 
 .card-btns{display:flex;flex-direction:column;gap:8px}
 .card-actions{display:flex;gap:8px}
 .card-actions .btn{flex:1}
-.btn-edit{width:100%;background:var(--surface-2);border-color:var(--border);font-weight:700}
-.btn-edit:hover{background:#303036;border-color:#444}
+.btn-full{width:100%}
+.btn-view,.btn-edit{background:var(--surface-2);border-color:var(--border);font-weight:700}
+.btn-view:hover,.btn-edit:hover{background:#303036;border-color:#444}
 .btn-studio{background:var(--accent);border-color:transparent;color:#fff}
 .btn-studio:hover{background:var(--accent-hover)}
 

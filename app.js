@@ -244,6 +244,13 @@ function channelUrl(ch) {
   return target;
 }
 
+// עמוד הסרטונים הציבורי — לראות את כל הסרטונים והצפיות "מבחוץ" (כמו צופה רגיל)
+function videosUrl(ch) {
+  if (ch.channelId) return `https://www.youtube.com/channel/${ch.channelId}/videos`;
+  if (ch.handle) return `https://www.youtube.com/${ch.handle}/videos`;
+  return "https://www.youtube.com";
+}
+
 // חילוץ מזהה/handle מקלט חופשי (URL, UC…, @שם)
 function parseChannelInput(input) {
   const v = (input || "").trim();
@@ -327,19 +334,17 @@ function render() {
       </div>
       ${stats}
       <div class="card-btns">
-        <div class="card-actions">
-          <button class="btn btn-studio" data-studio>🎬 פתח סטודיו</button>
-          <button class="btn" data-open title="פתח ערוץ ביוטיוב">▶</button>
-        </div>
-        <button class="btn btn-edit" data-edit>✏️ עריכת פרופיל</button>
+        <button class="btn btn-studio btn-full" data-studio>🎬 פתח סטודיו</button>
+        <button class="btn btn-view btn-full" data-view>👁️ צפה בערוץ מבחוץ</button>
+        <button class="btn btn-edit btn-full" data-edit>✏️ עריכת פרופיל</button>
       </div>
     `;
 
     card.querySelector("[data-studio]").addEventListener("click", () =>
       window.open(studioUrl(ch), "_blank", "noopener")
     );
-    card.querySelector("[data-open]").addEventListener("click", () =>
-      window.open(channelUrl(ch), "_blank", "noopener")
+    card.querySelector("[data-view]").addEventListener("click", () =>
+      window.open(videosUrl(ch), "_blank", "noopener")
     );
     card.querySelector("[data-edit]").addEventListener("click", () => openForm(ch));
     card.querySelector("[data-del]").addEventListener("click", () => removeChannel(ch));
@@ -618,25 +623,33 @@ function downloadHtml() {
   const br = (s) => esc(s).replace(/\n/g, "<br>");
   const date = new Date().toISOString().slice(0, 10);
 
-  const cards = channels.map((ch) => {
+  const cards = channels.map((ch, i) => {
     const img = ch.photo || (ch.stats && ch.stats.thumb) || "";
     const avatar = img
       ? `<img class="av" src="${esc(img)}" alt="">`
-      : `<div class="av ph">${esc(ch.emoji || initial(ch.name))}</div>`;
+      : `<div class="av ph" style="background:${esc(ch.color || "#ff0033")}">${esc(ch.emoji || initial(ch.name))}</div>`;
     const row = (label, val) => (val ? `<tr><th>${label}</th><td dir="auto">${br(val)}</td></tr>` : "");
     const st = ch.stats
-      ? `<tr><th>נתונים</th><td>👥 ${formatNum(ch.stats.subs)} · ▶ ${formatNum(ch.stats.views)} · 🎬 ${formatNum(ch.stats.videos)}</td></tr>`
+      ? `<tr><th>נתונים חיים</th><td>👥 ${formatNum(ch.stats.subs)} מנויים · ▶ ${formatNum(ch.stats.views)} צפיות · 🎬 ${formatNum(ch.stats.videos)} סרטונים</td></tr>`
+      : "";
+    const studioLink = ch.channelId
+      ? `<tr><th>🎬 סטודיו</th><td><a href="https://studio.youtube.com/channel/${esc(ch.channelId)}">פתיחת הסטודיו</a></td></tr>`
+      : "";
+    const viewLink = ch.channelId
+      ? `<tr><th>👁️ צפייה בערוץ</th><td><a href="https://www.youtube.com/channel/${esc(ch.channelId)}/videos">כל הסרטונים והצפיות</a></td></tr>`
       : "";
     return `
       <div class="ch" style="border-color:${esc(ch.color || "#ff0033")}">
-        <div class="ch-h">${avatar}<h3>${esc(ch.name)}</h3></div>
+        <div class="ch-h">${avatar}<h3>#${i + 1} · ${esc(ch.name)}</h3></div>
         <table>
           ${row("מייל", ch.email)}
-          ${row("מזהה ערוץ", ch.channelId)}
-          ${row("Handle", ch.handle)}
           ${row("🔑 סיסמה", ch.password)}
           ${row("📱 טלפון אימות", ch.phone)}
+          ${row("מזהה ערוץ", ch.channelId)}
+          ${row("Handle", ch.handle)}
           ${st}
+          ${studioLink}
+          ${viewLink}
           ${row("🧬 סקיל לשכפול", ch.skill)}
         </table>
       </div>`;
