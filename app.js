@@ -315,7 +315,6 @@ function render() {
     card.innerHTML = `
       <div class="card-num">#${num}</div>
       <div class="card-menu">
-        <button class="mini" data-edit title="עריכה">✏️</button>
         <button class="mini" data-del title="מחיקה">🗑️</button>
       </div>
       <div class="card-top">
@@ -327,9 +326,12 @@ function render() {
         </div>
       </div>
       ${stats}
-      <div class="card-actions">
-        <button class="btn btn-studio" data-studio>🎬 פתח סטודיו</button>
-        <button class="btn" data-open title="פתח ערוץ ביוטיוב">▶</button>
+      <div class="card-btns">
+        <div class="card-actions">
+          <button class="btn btn-studio" data-studio>🎬 פתח סטודיו</button>
+          <button class="btn" data-open title="פתח ערוץ ביוטיוב">▶</button>
+        </div>
+        <button class="btn btn-edit" data-edit>✏️ עריכת פרופיל</button>
       </div>
     `;
 
