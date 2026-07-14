@@ -332,6 +332,12 @@ function render() {
           ${badgesHtml}
         </div>
       </div>
+      <div class="verify-row">
+        <button class="verify-toggle ${ch.verified ? "on" : "off"}" data-verify aria-label="סטטוס אימות">
+          <span class="vt-track"><span class="vt-knob"></span></span>
+          <span class="vt-label">${ch.verified ? "✓ מאומת" : "לא מאומת"}</span>
+        </button>
+      </div>
       ${stats}
       <div class="card-btns">
         <button class="btn btn-studio btn-full" data-studio>🎬 פתח סטודיו</button>
@@ -348,6 +354,11 @@ function render() {
     );
     card.querySelector("[data-edit]").addEventListener("click", () => openForm(ch));
     card.querySelector("[data-del]").addEventListener("click", () => removeChannel(ch));
+    card.querySelector("[data-verify]").addEventListener("click", () => {
+      ch.verified = !ch.verified;
+      save();
+      render();
+    });
 
     addDragHandlers(card);
     grid.appendChild(card);
@@ -431,6 +442,7 @@ function submitForm(e) {
     phone: $("#f-phone").value.trim(),
     skill: $("#f-skill").value,
     photo: $("#f-photo").value || "",
+    verified: existing ? !!existing.verified : false,
     stats: existing ? existing.stats : undefined, // שימור נתונים חיים בעריכה
   };
   if (!data.name || !data.email) return;
@@ -483,6 +495,7 @@ function normalizeChannel(c) {
     phone: String(c.phone || ""),
     skill: String(c.skill || ""),
     photo: String(c.photo || ""),
+    verified: !!c.verified,
     stats: c.stats || undefined,
   };
 }
