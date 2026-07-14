@@ -186,6 +186,7 @@
       notes: main.notes || other.notes || "",
       cloud: main.cloud || other.cloud || "",
       links: (main.links && main.links.length ? main.links : other.links) || [],
+      folders: (main.folders && main.folders.length ? main.folders : other.folders) || [],
     };
   }
 

@@ -36,6 +36,8 @@
     <input id="search" type="search" placeholder="🔍 חיפוש ערוץ…" autocomplete="off" />
   </div>
 
+  <div id="folders" class="folders hidden"></div>
+
   <main>
     <section id="grid" class="grid" aria-live="polite"></section>
 
@@ -168,6 +170,23 @@
     </div>
   </div>
 
+  <!-- מודאל תיקיות -->
+  <div id="folder-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="folder-modal-title">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h2 id="folder-modal-title">העברה לתיקיה</h2>
+        <button class="btn btn-icon" type="button" data-close aria-label="סגירה">✕</button>
+      </div>
+      <div class="form">
+        <div id="folder-choices" class="folder-choices"></div>
+        <div class="link-add">
+          <input id="new-folder-name" type="text" placeholder="שם תיקיה חדשה…" />
+          <button type="button" id="btn-create-folder" class="btn btn-primary">＋</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- מודאל הגדרות / גיבוי -->
   <div id="menu" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="menu-title">
     <div class="modal-card">
@@ -225,7 +244,8 @@
         </div>
         <hr />
         <p class="muted">הנתונים נשמרים במכשיר הזה בלבד. כדאי לגבות מדי פעם.</p>
-        <button id="btn-download-html" class="btn btn-block" type="button">📥 הורדת כל המידע לקובץ HTML</button>
+        <button id="btn-download-html" class="btn btn-block" type="button">📥 הורדת כל המידע (HTML)</button>
+        <button id="btn-download-pdf" class="btn btn-block" type="button">📄 הורדת כל המידע (PDF)</button>
         <button id="btn-export" class="btn btn-block" type="button">⬇️ ייצוא גיבוי (JSON)</button>
         <button id="btn-import" class="btn btn-block" type="button">⬆️ ייבוא מגיבוי</button>
         <input id="file-import" type="file" accept="application/json" hidden />

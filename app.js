@@ -8,7 +8,9 @@ const STATS_TTL = 1000 * 60 * 30; // רענון אוטומטי כל 30 דקות
 
 /* --- State --- */
 let channels = load();
-let globalData = loadGlobal(); // { notes, cloud, links: [{title,url}] }
+let globalData = loadGlobal(); // { notes, cloud, links, folders }
+let activeFolder = null; // null = הכל
+let movingChannelId = null; // הערוץ שמעבירים לתיקיה
 
 /* --- DOM --- */
 const $ = (s) => document.querySelector(s);
@@ -59,9 +61,14 @@ function save() {
 function loadGlobal() {
   try {
     const g = JSON.parse(localStorage.getItem(GLOBAL_KEY)) || {};
-    return { notes: g.notes || "", cloud: g.cloud || "", links: Array.isArray(g.links) ? g.links : [] };
+    return {
+      notes: g.notes || "",
+      cloud: g.cloud || "",
+      links: Array.isArray(g.links) ? g.links : [],
+      folders: Array.isArray(g.folders) ? g.folders : [],
+    };
   } catch {
-    return { notes: "", cloud: "", links: [] };
+    return { notes: "", cloud: "", links: [], folders: [] };
   }
 }
 function saveGlobal() {
@@ -109,6 +116,7 @@ window.applyCloudData = function (data, cloudModified) {
       notes: data.global.notes || "",
       cloud: data.global.cloud || "",
       links: Array.isArray(data.global.links) ? data.global.links : [],
+      folders: Array.isArray(data.global.folders) ? data.global.folders : [],
     };
     try { localStorage.setItem(GLOBAL_KEY, JSON.stringify(globalData)); } catch {}
   }
@@ -279,13 +287,13 @@ function initial(name) {
 
 /* ===================== רינדור ===================== */
 function render() {
+  renderFolders();
   const q = (search.value || "").trim().toLowerCase();
-  const list = channels.filter(
-    (c) =>
-      !q ||
-      (c.name || "").toLowerCase().includes(q) ||
-      (c.email || "").toLowerCase().includes(q)
-  );
+  const list = channels.filter((c) => {
+    if (activeFolder !== null && (c.folder || "") !== activeFolder) return false;
+    if (!q) return true;
+    return (c.name || "").toLowerCase().includes(q) || (c.email || "").toLowerCase().includes(q);
+  });
 
   grid.innerHTML = "";
   empty.classList.toggle("hidden", channels.length > 0);
@@ -322,6 +330,7 @@ function render() {
     card.innerHTML = `
       <div class="card-num">#${num}</div>
       <div class="card-menu">
+        <button class="mini" data-folder title="העבר לתיקיה">📁</button>
         <button class="mini" data-del title="מחיקה">🗑️</button>
       </div>
       <div class="card-top">
@@ -354,6 +363,7 @@ function render() {
     );
     card.querySelector("[data-edit]").addEventListener("click", () => openForm(ch));
     card.querySelector("[data-del]").addEventListener("click", () => removeChannel(ch));
+    card.querySelector("[data-folder]").addEventListener("click", () => openFolderModal(ch));
     card.querySelector("[data-verify]").addEventListener("click", () => {
       ch.verified = !ch.verified;
       save();
@@ -443,6 +453,7 @@ function submitForm(e) {
     skill: $("#f-skill").value,
     photo: $("#f-photo").value || "",
     verified: existing ? !!existing.verified : false,
+    folder: existing ? existing.folder || "" : "",
     stats: existing ? existing.stats : undefined, // שימור נתונים חיים בעריכה
   };
   if (!data.name || !data.email) return;
@@ -496,6 +507,7 @@ function normalizeChannel(c) {
     skill: String(c.skill || ""),
     photo: String(c.photo || ""),
     verified: !!c.verified,
+    folder: String(c.folder || ""),
     stats: c.stats || undefined,
   };
 }
@@ -630,60 +642,177 @@ function addLink() {
   renderLinks();
 }
 
+/* ===================== תיקיות ===================== */
+function renderFolders() {
+  const bar = $("#folders");
+  if (!bar) return;
+  const counts = {};
+  channels.forEach((c) => { const f = c.folder || ""; counts[f] = (counts[f] || 0) + 1; });
+  const folders = globalData.folders || [];
+  bar.classList.toggle("hidden", folders.length === 0);
+  if (!folders.length) { bar.innerHTML = ""; return; }
+
+  let html = `<button class="folder-chip ${activeFolder === null ? "active" : ""}" data-fall>📂 הכל <b>${channels.length}</b></button>`;
+  folders.forEach((f) => {
+    html += `<button class="folder-chip ${activeFolder === f ? "active" : ""}" data-f="${escapeHtml(f)}">📁 ${escapeHtml(f)} <b>${counts[f] || 0}</b></button>`;
+  });
+  html += `<button class="folder-chip add" data-fnew>＋ תיקיה</button>`;
+  bar.innerHTML = html;
+  bar.querySelector("[data-fall]").addEventListener("click", () => { activeFolder = null; render(); });
+  bar.querySelectorAll("[data-f]").forEach((b) =>
+    b.addEventListener("click", () => { activeFolder = b.getAttribute("data-f"); render(); })
+  );
+  bar.querySelector("[data-fnew]").addEventListener("click", () => openFolderModal(null));
+}
+
+function openFolderModal(ch) {
+  movingChannelId = ch ? ch.id : null;
+  $("#folder-modal-title").textContent = ch ? "העברה לתיקיה" : "ניהול תיקיות";
+  $("#new-folder-name").value = "";
+  renderFolderChoices();
+  showModal("#folder-modal");
+}
+
+function renderFolderChoices() {
+  const box = $("#folder-choices");
+  const folders = globalData.folders || [];
+  const ch = movingChannelId ? channels.find((c) => c.id === movingChannelId) : null;
+  let html = "";
+  if (ch) {
+    const cur = ch.folder || "";
+    html += `<button class="folder-choice ${cur === "" ? "current" : ""}" data-move="">📂 ללא תיקיה</button>`;
+  }
+  folders.forEach((f) => {
+    const isCur = ch && (ch.folder || "") === f;
+    html += `<div class="folder-choice-row">
+      <button class="folder-choice ${isCur ? "current" : ""}" data-move="${escapeHtml(f)}">📁 ${escapeHtml(f)}</button>
+      <button class="mini" data-fdel="${escapeHtml(f)}" title="מחיקת תיקיה">🗑️</button>
+    </div>`;
+  });
+  if (!folders.length && !ch) html = `<p class="muted small center">אין תיקיות עדיין. צרו אחת למטה 👇</p>`;
+  box.innerHTML = html;
+  box.querySelectorAll("[data-move]").forEach((b) =>
+    b.addEventListener("click", () => moveToFolder(b.getAttribute("data-move")))
+  );
+  box.querySelectorAll("[data-fdel]").forEach((b) =>
+    b.addEventListener("click", () => deleteFolder(b.getAttribute("data-fdel")))
+  );
+}
+
+function moveToFolder(f) {
+  if (!movingChannelId) return;
+  const ch = channels.find((c) => c.id === movingChannelId);
+  if (ch) {
+    ch.folder = f;
+    save();
+    render();
+    toast(f ? `📁 הועבר ל-${f}` : "הוסר מתיקיה");
+  }
+  hideModal("#folder-modal");
+}
+
+function createFolderFromModal() {
+  const name = $("#new-folder-name").value.trim();
+  if (!name) return;
+  globalData.folders = globalData.folders || [];
+  if (!globalData.folders.includes(name)) globalData.folders.push(name);
+  saveGlobal();
+  if (movingChannelId) {
+    moveToFolder(name); // אם מעבירים ערוץ — מעביר מיד לתיקיה החדשה
+  } else {
+    $("#new-folder-name").value = "";
+    renderFolderChoices();
+    renderFolders();
+    toast("📁 התיקיה נוצרה");
+  }
+}
+
+function deleteFolder(f) {
+  if (!confirm(`למחוק את התיקיה "${f}"? הערוצים יישארו אבל יוסרו מהתיקיה.`)) return;
+  globalData.folders = (globalData.folders || []).filter((x) => x !== f);
+  channels.forEach((c) => { if (c.folder === f) c.folder = ""; });
+  if (activeFolder === f) activeFolder = null;
+  saveGlobal();
+  save();
+  renderFolderChoices();
+  render();
+  toast("התיקיה נמחקה");
+}
+
 /* ===================== הורדת כל המידע ל-HTML/PDF ===================== */
-function downloadHtml() {
+// בונה כרטיס HTML מלא לערוץ בודד
+function channelCardHtml(ch, num, esc, br) {
+  const img = ch.photo || (ch.stats && ch.stats.thumb) || "";
+  const avatar = img
+    ? `<img class="av" src="${esc(img)}" alt="">`
+    : `<div class="av ph" style="background:${esc(ch.color || "#ff0033")}">${esc(ch.emoji || initial(ch.name))}</div>`;
+  const row = (label, val) => (val ? `<tr><th>${label}</th><td dir="auto">${br(val)}</td></tr>` : "");
+  const st = ch.stats
+    ? `<tr><th>נתונים חיים</th><td>👥 ${formatNum(ch.stats.subs)} מנויים · ▶ ${formatNum(ch.stats.views)} צפיות · 🎬 ${formatNum(ch.stats.videos)} סרטונים</td></tr>`
+    : "";
+  const studioLink = ch.channelId
+    ? `<tr><th>🎬 סטודיו</th><td><a href="https://studio.youtube.com/channel/${esc(ch.channelId)}">פתיחת הסטודיו</a></td></tr>`
+    : "";
+  const viewLink = ch.channelId
+    ? `<tr><th>👁️ צפייה בערוץ</th><td><a href="https://www.youtube.com/channel/${esc(ch.channelId)}/videos">כל הסרטונים והצפיות</a></td></tr>`
+    : "";
+  const verified = `<tr><th>סטטוס</th><td>${ch.verified ? "✅ מאומת" : "🟠 לא מאומת"}</td></tr>`;
+  return `
+    <div class="ch" style="border-color:${esc(ch.color || "#ff0033")}">
+      <div class="ch-h">${avatar}<h3>#${num} · ${esc(ch.name)}</h3></div>
+      <table>
+        ${row("מייל", ch.email)}
+        ${row("🔑 סיסמה", ch.password)}
+        ${row("📱 טלפון אימות", ch.phone)}
+        ${row("מזהה ערוץ", ch.channelId)}
+        ${row("Handle", ch.handle)}
+        ${verified}
+        ${st}
+        ${studioLink}
+        ${viewLink}
+        ${row("🧬 סקיל לשכפול", ch.skill)}
+      </table>
+    </div>`;
+}
+
+// בונה את מסמך הגיבוי המלא — כל הערוצים מקובצים לפי תיקיה
+function buildBackupHtml(date) {
   const esc = (s) => escapeHtml(String(s == null ? "" : s));
   const br = (s) => esc(s).replace(/\n/g, "<br>");
-  const date = new Date().toISOString().slice(0, 10);
 
-  const cards = channels.map((ch, i) => {
-    const img = ch.photo || (ch.stats && ch.stats.thumb) || "";
-    const avatar = img
-      ? `<img class="av" src="${esc(img)}" alt="">`
-      : `<div class="av ph" style="background:${esc(ch.color || "#ff0033")}">${esc(ch.emoji || initial(ch.name))}</div>`;
-    const row = (label, val) => (val ? `<tr><th>${label}</th><td dir="auto">${br(val)}</td></tr>` : "");
-    const st = ch.stats
-      ? `<tr><th>נתונים חיים</th><td>👥 ${formatNum(ch.stats.subs)} מנויים · ▶ ${formatNum(ch.stats.views)} צפיות · 🎬 ${formatNum(ch.stats.videos)} סרטונים</td></tr>`
-      : "";
-    const studioLink = ch.channelId
-      ? `<tr><th>🎬 סטודיו</th><td><a href="https://studio.youtube.com/channel/${esc(ch.channelId)}">פתיחת הסטודיו</a></td></tr>`
-      : "";
-    const viewLink = ch.channelId
-      ? `<tr><th>👁️ צפייה בערוץ</th><td><a href="https://www.youtube.com/channel/${esc(ch.channelId)}/videos">כל הסרטונים והצפיות</a></td></tr>`
-      : "";
-    return `
-      <div class="ch" style="border-color:${esc(ch.color || "#ff0033")}">
-        <div class="ch-h">${avatar}<h3>#${i + 1} · ${esc(ch.name)}</h3></div>
-        <table>
-          ${row("מייל", ch.email)}
-          ${row("🔑 סיסמה", ch.password)}
-          ${row("📱 טלפון אימות", ch.phone)}
-          ${row("מזהה ערוץ", ch.channelId)}
-          ${row("Handle", ch.handle)}
-          ${st}
-          ${studioLink}
-          ${viewLink}
-          ${row("🧬 סקיל לשכפול", ch.skill)}
-        </table>
-      </div>`;
+  // קיבוץ לפי תיקיה: קודם התיקיות לפי הסדר, ואז "ללא תיקיה"
+  const groups = [];
+  (globalData.folders || []).forEach((f) => {
+    const items = channels.filter((c) => (c.folder || "") === f);
+    if (items.length) groups.push({ name: f, items });
+  });
+  const noFolder = channels.filter((c) => !(c.folder || "") || !(globalData.folders || []).includes(c.folder));
+  if (noFolder.length) groups.push({ name: "", items: noFolder });
+
+  let n = 0;
+  const sections = groups.map((g) => {
+    const cards = g.items.map((ch) => channelCardHtml(ch, ++n, esc, br)).join("");
+    const title = g.name ? `<h2 class="folder-title">📁 ${esc(g.name)} · ${g.items.length} ערוצים</h2>` : `<h2 class="folder-title">📂 ללא תיקיה · ${g.items.length} ערוצים</h2>`;
+    return title + cards;
   }).join("");
 
   const links = (globalData.links || [])
     .map((l) => `<li><a href="${esc(l.url)}">${esc(l.title || l.url)}</a></li>`)
     .join("");
 
-  const html = `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8">
+  return `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8">
 <title>הערוצים שלי — גיבוי ${date}</title>
 <style>
   *{box-sizing:border-box}
   body{font-family:"Segoe UI","Noto Sans Hebrew",Arial,sans-serif;background:#f4f4f6;color:#18181b;margin:0;padding:24px;line-height:1.6}
   h1{margin:0 0 4px}.sub{color:#777;margin-bottom:20px}
+  .folder-title{font-size:17px;margin:24px 0 12px;padding-bottom:6px;border-bottom:2px solid #ddd}
   .toolbar{margin-bottom:20px}
-  .toolbar button{font:inherit;font-weight:700;background:#ff0033;color:#fff;border:0;border-radius:10px;padding:10px 18px;cursor:pointer}
-  .ch{background:#fff;border-right:6px solid #ff0033;border-radius:12px;padding:16px 20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.08);break-inside:avoid}
+  .toolbar button{font:inherit;font-weight:700;background:#ff2d55;color:#fff;border:0;border-radius:10px;padding:10px 18px;cursor:pointer}
+  .ch{background:#fff;border-right:6px solid #ff2d55;border-radius:12px;padding:16px 20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.08);break-inside:avoid}
   .ch-h{display:flex;align-items:center;gap:12px;margin-bottom:10px}
   .av{width:46px;height:46px;border-radius:12px;object-fit:cover}
-  .av.ph{display:grid;place-items:center;background:#ff0033;color:#fff;font-size:22px;font-weight:700}
+  .av.ph{display:grid;place-items:center;background:#ff2d55;color:#fff;font-size:22px;font-weight:700}
   .ch h3{margin:0;font-size:18px}
   table{width:100%;border-collapse:collapse}
   th,td{text-align:right;padding:6px 8px;vertical-align:top;font-size:14px;border-bottom:1px solid #eee}
@@ -698,19 +827,35 @@ function downloadHtml() {
   <h1>📺 הערוצים שלי</h1>
   <div class="sub">גיבוי מלא · ${date} · ${channels.length} ערוצים</div>
   <div class="toolbar"><button onclick="window.print()">🖨️ הדפסה / שמירה כ-PDF</button></div>
-  ${cards || "<p>אין ערוצים.</p>"}
+  ${sections || "<p>אין ערוצים.</p>"}
   ${globalData.notes ? `<div class="box"><h2>🗒️ מידע כללי</h2><pre>${br(globalData.notes)}</pre></div>` : ""}
   ${globalData.cloud ? `<div class="box"><h2>☁️ מחשב ענן</h2><pre dir="ltr">${br(globalData.cloud)}</pre></div>` : ""}
   ${links ? `<div class="box"><h2>🔗 קישורים חשובים</h2><ul>${links}</ul></div>` : ""}
 </body></html>`;
+}
 
+function downloadHtml() {
+  const date = new Date().toISOString().slice(0, 10);
+  const html = buildBackupHtml(date);
   const blob = new Blob([html], { type: "text/html;charset=utf-8" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = `youtube-channels-${date}.html`;
   a.click();
   URL.revokeObjectURL(a.href);
-  toast("📥 הקובץ הורד — פתח אותו ולחץ 'הדפסה/PDF'");
+  toast("📥 הקובץ הורד");
+}
+
+// PDF: פותח חלון עם הגיבוי ומפעיל הדפסה (בוחרים 'שמירה כ-PDF')
+function downloadPdf() {
+  const date = new Date().toISOString().slice(0, 10);
+  const html = buildBackupHtml(date);
+  const w = window.open("", "_blank");
+  if (!w) { toast("⚠️ הדפדפן חסם חלון קופץ — אשר ונסה שוב"); return; }
+  w.document.write(html);
+  w.document.close();
+  setTimeout(() => { try { w.focus(); w.print(); } catch {} }, 500);
+  toast("📄 נפתח חלון הדפסה — בחר 'שמירה כ-PDF'");
 }
 
 /* ===================== אירועים ===================== */
@@ -736,8 +881,15 @@ $("#btn-save-hub").addEventListener("click", saveHub);
 $("#btn-add-link").addEventListener("click", addLink);
 $("#link-url").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addLink(); } });
 
-// הורדת HTML
+// הורדה
 $("#btn-download-html").addEventListener("click", downloadHtml);
+$("#btn-download-pdf").addEventListener("click", downloadPdf);
+
+// תיקיות
+$("#btn-create-folder").addEventListener("click", createFolderFromModal);
+$("#new-folder-name").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); createFolderFromModal(); }
+});
 
 $("#btn-menu").addEventListener("click", () => {
   $("#count-line").textContent = `סה"כ ${channels.length} ערוצים שמורים`;
@@ -789,6 +941,7 @@ document.querySelectorAll("[data-close]").forEach((b) =>
     hideModal("#modal");
     hideModal("#menu");
     hideModal("#hub");
+    hideModal("#folder-modal");
   })
 );
 document.querySelectorAll(".modal").forEach((m) =>
@@ -801,6 +954,7 @@ document.addEventListener("keydown", (e) => {
     hideModal("#modal");
     hideModal("#menu");
     hideModal("#hub");
+    hideModal("#folder-modal");
   }
 });
 

@@ -288,6 +288,36 @@ main{max-width:1100px;margin-inline:auto;width:100%;padding:14px 18px calc(48px 
 .link-add .btn-primary{flex:0 0 auto;padding:12px 18px;font-size:18px}
 .center{text-align:center}.small{font-size:12px}
 
+/* ===== תיקיות (סרגל chips) ===== */
+.folders{
+  display:flex;gap:8px;overflow-x:auto;
+  padding:14px 18px 2px;max-width:1100px;margin-inline:auto;width:100%;
+  -webkit-overflow-scrolling:touch;scrollbar-width:none;
+}
+.folders::-webkit-scrollbar{display:none}
+.folder-chip{
+  flex:0 0 auto;font:inherit;font-size:14px;font-weight:600;letter-spacing:-.01em;
+  color:var(--text);background:var(--surface);border:1px solid var(--border);
+  border-radius:20px;padding:8px 15px;cursor:pointer;white-space:nowrap;
+  transition:background .15s,color .15s;box-shadow:var(--shadow);
+}
+.folder-chip b{color:var(--muted);font-weight:700;margin-inline-start:3px}
+.folder-chip.active{background:var(--accent);color:#fff;border-color:transparent}
+.folder-chip.active b{color:rgba(255,255,255,.85)}
+.folder-chip.add{color:var(--blue);border-style:dashed;box-shadow:none}
+
+/* ===== תיקיות (בחירה במודאל) ===== */
+.folder-choices{display:flex;flex-direction:column;gap:8px}
+.folder-choice-row{display:flex;gap:8px;align-items:center}
+.folder-choice-row .folder-choice{flex:1}
+.folder-choice{
+  width:100%;text-align:right;font:inherit;font-size:15px;font-weight:600;
+  color:var(--text);background:var(--surface-2);border:1.5px solid transparent;
+  border-radius:12px;padding:14px 15px;cursor:pointer;transition:background .15s;
+}
+.folder-choice:hover{background:var(--surface-3)}
+.folder-choice.current{border-color:var(--accent);color:var(--accent)}
+
 /* ===== Toast ===== */
 .toast{
   position:fixed;bottom:calc(26px + var(--safe-bottom));left:50%;transform:translate(-50%,0);
