@@ -330,7 +330,6 @@ function render() {
     card.innerHTML = `
       <div class="card-num">#${num}</div>
       <div class="card-menu">
-        <button class="mini" data-folder title="העבר לתיקיה">📁</button>
         <button class="mini" data-del title="מחיקה">🗑️</button>
       </div>
       <div class="card-top">
@@ -351,7 +350,10 @@ function render() {
       <div class="card-btns">
         <button class="btn btn-studio btn-full" data-studio>🎬 פתח סטודיו</button>
         <button class="btn btn-view btn-full" data-view>👁️ צפה בערוץ מבחוץ</button>
-        <button class="btn btn-edit btn-full" data-edit>✏️ עריכת פרופיל</button>
+        <div class="card-actions">
+          <button class="btn btn-edit" data-edit>✏️ עריכה</button>
+          <button class="btn btn-folder ${ch.folder ? "in-folder" : ""}" data-folder>${ch.folder ? "📁 " + escapeHtml(ch.folder.length > 10 ? ch.folder.slice(0, 9) + "…" : ch.folder) : "📁 תיקיה"}</button>
+        </div>
       </div>
     `;
 
@@ -649,14 +651,14 @@ function renderFolders() {
   const counts = {};
   channels.forEach((c) => { const f = c.folder || ""; counts[f] = (counts[f] || 0) + 1; });
   const folders = globalData.folders || [];
-  bar.classList.toggle("hidden", folders.length === 0);
-  if (!folders.length) { bar.innerHTML = ""; return; }
+  // מוסתר רק כשאין ערוצים בכלל; אחרת תמיד גלוי כדי שאפשר יהיה ליצור תיקיה
+  bar.classList.toggle("hidden", channels.length === 0);
 
   let html = `<button class="folder-chip ${activeFolder === null ? "active" : ""}" data-fall>📂 הכל <b>${channels.length}</b></button>`;
   folders.forEach((f) => {
     html += `<button class="folder-chip ${activeFolder === f ? "active" : ""}" data-f="${escapeHtml(f)}">📁 ${escapeHtml(f)} <b>${counts[f] || 0}</b></button>`;
   });
-  html += `<button class="folder-chip add" data-fnew>＋ תיקיה</button>`;
+  html += `<button class="folder-chip add" data-fnew>＋ תיקיה חדשה</button>`;
   bar.innerHTML = html;
   bar.querySelector("[data-fall]").addEventListener("click", () => { activeFolder = null; render(); });
   bar.querySelectorAll("[data-f]").forEach((b) =>
