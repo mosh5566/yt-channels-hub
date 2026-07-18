@@ -290,13 +290,24 @@ function render() {
   renderFolders();
   const q = (search.value || "").trim().toLowerCase();
   const list = channels.filter((c) => {
-    if (activeFolder !== null && (c.folder || "") !== activeFolder) return false;
+    // העמוד הראשי מציג רק ערוצים שאינם בתיקיה; תיקיה מציגה רק את שלה
+    const f = effectiveFolder(c);
+    if (activeFolder === null ? f !== "" : f !== activeFolder) return false;
     if (!q) return true;
     return (c.name || "").toLowerCase().includes(q) || (c.email || "").toLowerCase().includes(q);
   });
 
   grid.innerHTML = "";
   empty.classList.toggle("hidden", channels.length > 0);
+
+  // הודעה כשהתצוגה ריקה אבל יש ערוצים במקום אחר
+  if (channels.length > 0 && list.length === 0) {
+    grid.innerHTML = `<p class="muted center" style="grid-column:1/-1;padding:44px 12px;line-height:1.7">${
+      activeFolder
+        ? "אין ערוצים בתיקיה הזו עדיין.<br>העבירו ערוצים לכאן עם כפתור 📁 בכרטיס."
+        : "כל הערוצים נמצאים בתיקיות 📁<br>לחצו על תיקיה למעלה כדי לראות אותם."
+    }</p>`;
+  }
 
   list.forEach((ch) => {
     const card = document.createElement("article");
@@ -645,16 +656,22 @@ function addLink() {
 }
 
 /* ===================== תיקיות ===================== */
+// התיקיה האפקטיבית של ערוץ ("" = ראשי). ערוץ עם תיקיה שנמחקה חוזר לראשי.
+function effectiveFolder(ch) {
+  const folders = globalData.folders || [];
+  return ch.folder && folders.includes(ch.folder) ? ch.folder : "";
+}
+
 function renderFolders() {
   const bar = $("#folders");
   if (!bar) return;
-  const counts = {};
-  channels.forEach((c) => { const f = c.folder || ""; counts[f] = (counts[f] || 0) + 1; });
   const folders = globalData.folders || [];
+  const counts = {};
+  channels.forEach((c) => { const f = effectiveFolder(c); counts[f] = (counts[f] || 0) + 1; });
   // מוסתר רק כשאין ערוצים בכלל; אחרת תמיד גלוי כדי שאפשר יהיה ליצור תיקיה
   bar.classList.toggle("hidden", channels.length === 0);
 
-  let html = `<button class="folder-chip ${activeFolder === null ? "active" : ""}" data-fall>📂 הכל <b>${channels.length}</b></button>`;
+  let html = `<button class="folder-chip ${activeFolder === null ? "active" : ""}" data-fall>📂 ראשי <b>${counts[""] || 0}</b></button>`;
   folders.forEach((f) => {
     html += `<button class="folder-chip ${activeFolder === f ? "active" : ""}" data-f="${escapeHtml(f)}">📁 ${escapeHtml(f)} <b>${counts[f] || 0}</b></button>`;
   });

@@ -1,5 +1,5 @@
 /* Service Worker — network-first כדי שתמיד יטען קוד עדכני, עם נפילה למטמון באופליין */
-const CACHE = "yt-hub-v5";
+const CACHE = "yt-hub-v6";
 const ASSETS = [
   "./",
   "./index.html",
